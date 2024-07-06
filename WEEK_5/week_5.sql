@@ -17307,10 +17307,130 @@ GO
 	FROM clean_weekly_sales
 	GROUP BY platform_bussiness;
 
-					
-								
-							
-								
+
+--6 - What is the percentage of sales for Retail vs Shopify for each month?
+
+	WITH total_sales_each_month AS (
+	  SELECT
+		calendar_year,
+		month_number,
+		SUM(CONVERT(BIGINT, sales)) AS total_sales
+	  FROM clean_weekly_sales
+	  GROUP BY calendar_year, month_number
+	)
+	SELECT
+	  cws.calendar_year,
+	  cws.month_number,
+	  ROUND(SUM(
+		CASE WHEN cws.platform_bussiness = 'Retail' THEN CONVERT(BIGINT, cws.sales) ELSE 0 END
+	  ) / CONVERT(FLOAT, tsem.total_sales) * 100, 2) AS percentage_retail,
+	  100 - ROUND(SUM(
+		CASE WHEN cws.platform_bussiness = 'Retail' THEN CONVERT(BIGINT, cws.sales) ELSE 0 END
+	  ) / CONVERT(FLOAT, tsem.total_sales) * 100, 2) AS percentage_shopee
+	FROM clean_weekly_sales AS cws
+	JOIN total_sales_each_month AS tsem 
+	ON cws.calendar_year = tsem.calendar_year 
+	AND cws.month_number = tsem.month_number
+	GROUP BY cws.calendar_year, cws.month_number, tsem.total_sales
+	ORDER BY cws.calendar_year, cws.month_number;
+
+  -- 7. What is the percentage of sales by demographic for each year in the dataset?
+
+	WITH sales_by_demographic AS (
+	  SELECT 
+		calendar_year,
+		demographic,
+		SUM(CAST(sales AS BIGINT)) AS sales
+	  FROM clean_weekly_sales
+	  GROUP BY calendar_year, demographic
+	)
+
+	SELECT 
+	  calendar_year,
+	  CAST(100.0 * SUM(CASE WHEN demographic = 'Families' THEN sales ELSE 0 END) 
+		/ SUM(CAST(sales AS BIGINT)) AS decimal(5, 2)) AS pct_families,
+	  CAST(100.0 * SUM(CASE WHEN demographic = 'Couples' THEN sales ELSE 0 END) 
+		/ SUM(CAST(sales AS BIGINT)) AS decimal(5, 2)) AS pct_couples,
+	  CAST(100.0 * SUM(CASE WHEN demographic = 'unknown' THEN sales ELSE 0 END) 
+		/ SUM(CAST(sales AS BIGINT)) AS decimal(5, 2)) AS pct_unknown
+	FROM sales_by_demographic
+	GROUP BY calendar_year;
+
+	
+--  -- 8. Which age_band and demographic values contribute the most to Retail sales?
+	SELECT * FROM CLEAN_WEEKLY_SALES
+
+	SELECT
+	  age_band, demographic,  SUM(CAST(sales AS BIGINT)) AS T_sales
+	FROM
+	  clean_weekly_sales
+	WHERE
+	  platform_bussiness = 'Retail'
+	GROUP BY
+	  age_band, demographic
+	ORDER BY
+	  T_sales DESC, age_band, demographic
+
+  					
+-- 9. Can we use the avg_transaction column to find the average transaction size for each year for Retail vs Shopify? If not - how would you calculate it instead?
+
+	SELECT 
+	 calendar_year, 
+	 platform_bussiness, 
+	ROUND(AVG(avg_transaction), 0) AS avg_transaction_row, 
+	 CAST(SUM(CAST(sales AS BIGINT)) AS FLOAT) / SUM(CAST(transactions AS BIGINT)) AS avg_transaction_group
+	FROM clean_weekly_sales
+	GROUP BY calendar_year, platform_bussiness;
+
+
+  -- C. Before & After Analysis -- 
+  -- 1. What is the total sales for the 4 weeks before and after 2020-06-15? What is the growth or reduction rate in actual values and percentage of sales?
+  
+	  DECLARE @retailSales bigint = (
+	  SELECT SUM(CAST(sales AS BIGINT))
+	  FROM clean_weekly_sales
+	  WHERE platform_bussiness = 'Retail')
+				
+	SELECT 
+	  age_band,
+	  demographic,
+	  SUM(CAST(sales AS BIGINT)) AS sales,
+	  CAST(100.0 * SUM(CAST(sales AS BIGINT))/@retailSales AS decimal(5, 2)) AS contribution
+	FROM clean_weekly_sales
+	WHERE platform_bussiness = 'Retail'
+	GROUP BY age_band, demographic
+	ORDER BY contribution DESC;
+
+    -- 2. What about the entire 12 weeks before and after?
+
+	 WITH packaging_sales AS (
+  SELECT 
+    week_date, 
+    week_number, 
+    SUM(CAST(sales AS BIGINT)) AS total_sales
+  FROM clean_weekly_sales
+  WHERE (week_number BETWEEN 13 AND 37) 
+    AND (calendar_year = 2020)
+  GROUP BY week_date, week_number
+)
+, before_after_changes AS (
+  SELECT 
+    SUM(CASE 
+      WHEN week_number BETWEEN 13 AND 24 THEN total_sales END) AS before_packaging_sales,
+    SUM(CASE 
+      WHEN week_number BETWEEN 25 AND 37 THEN total_sales END) AS after_packaging_sales
+  FROM packaging_sales
+)
+
+SELECT 
+  after_packaging_sales - before_packaging_sales AS sales_variance, 
+  ROUND(100 * 
+    (after_packaging_sales - before_packaging_sales) / before_packaging_sales,2) AS variance_percentage
+FROM before_after_changes;
+
+
+
+				
 								
 								
 								
