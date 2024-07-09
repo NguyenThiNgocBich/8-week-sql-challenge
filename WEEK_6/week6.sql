@@ -4681,7 +4681,8 @@ VALUES
 
 
   --1. How many users are there?
- -- select*from users
+  select*from users
+
 	SELECT 
 	COUNT(DISTINCT id_user) AS user_count
 	FROM users;
@@ -4705,3 +4706,34 @@ VALUES
 	COUNT(DISTINCT visit_id) AS unique_visit_count
 	FROM events
 	GROUP BY DATEPART(MONTH, event_time);
+
+	--4. What is the number of events for each event type?
+
+	SELECT 
+	event_type, 
+	COUNT(*) AS event_count
+	FROM events
+	GROUP BY event_type
+	ORDER BY event_type;
+
+	--5. What is the percentage of visits which have a purchase event?
+	--6. What is the percentage of visits which view the checkout page but do not have a purchase event? The strategy to answer this question is to breakdown the question into 2 parts.
+	--7. What are the top 3 pages by number of views?
+
+	SELECT Top 3
+	page_name,
+	COUNT(*) AS view_count
+	FROM events AS e
+	JOIN event AS ei ON ei.event_type = e.event_type
+	JOIN page_hierarchy AS ph ON ph.page_id = e.page_id
+	WHERE event_name = 'Page View'
+	GROUP BY page_name
+	ORDER BY view_count DESC;
+
+
+
+
+
+
+
+
