@@ -4717,7 +4717,27 @@ VALUES
 	ORDER BY event_type;
 
 	--5. What is the percentage of visits which have a purchase event?
+
+	SELECT
+	COUNT(DISTINCT visit_id) / (SELECT COUNT(DISTINCT visit_id) FROM events) * 100 AS percentage
+	FROM events AS e
+	JOIN event AS ei ON e.event_type = ei.event_type
+	WHERE event_name = 'Purchase'
+
 	--6. What is the percentage of visits which view the checkout page but do not have a purchase event? The strategy to answer this question is to breakdown the question into 2 parts.
+	SELECT 
+	ROUND((1 - SUM(purchase_count)/SUM(view_checkout_count)) * 100, 2) AS percentage
+	FROM
+	(SELECT
+	visit_id,
+	SUM(CASE WHEN event_name = 'Page View' AND page_name = 'Checkout' THEN 1 ELSE 0 END) AS view_checkout_count,
+	SUM(CASE WHEN event_name = 'Purchase' THEN 1 ELSE 0 END) AS purchase_count
+	FROM events AS e
+	JOIN event AS ei ON ei.event_type = e.event_type
+	JOIN page_hierarchy AS ph ON ph.page_id = e.page_id
+	GROUP BY visit_id
+	) AS x;
+
 	--7. What are the top 3 pages by number of views?
 
 	SELECT Top 3
@@ -4730,7 +4750,36 @@ VALUES
 	GROUP BY page_name
 	ORDER BY view_count DESC;
 
+  --8 - What is the number of views and cart adds for each product category?
 
+	SELECT
+	product_category,
+	SUM(CASE WHEN event_name = 'Page View' THEN 1 ELSE 0 END) AS view_count,
+	SUM(CASE WHEN event_name = 'Add to Cart' THEN 1 ELSE 0 END) AS cart_add
+	FROM events AS e
+	JOIN event AS ei ON ei.event_type = e.event_type
+	JOIN page_hierarchy AS ph ON ph.page_id = e.page_id
+	WHERE product_category IS NOT NULL
+	GROUP BY product_category
+	ORDER BY view_count DESC;
+
+	--9 - What are the top 3 products by purchases?
+
+	WITH check_purchase AS
+	(SELECT 
+	 DISTINCT visit_id
+	FROM events
+	WHERE event_type=3)
+	SELECT TOP 3
+	 page_name,
+	SUM(CASE WHEN event_name = 'Add to Cart' THEN 1 ELSE 0 END) AS purchase_count
+	FROM events AS e
+	LEFT JOIN check_purchase AS cp ON cp.visit_id = e.visit_id
+	JOIN event AS ei ON ei.event_type = e.event_type
+	JOIN page_hierarchy AS ph ON ph.page_id = e.page_id
+	WHERE product_id IS NOT NULL
+	GROUP BY page_name
+	ORDER BY purchase_count DESC
 
 
 
