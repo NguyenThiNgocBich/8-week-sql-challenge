@@ -15319,3 +15319,32 @@ GO
 	JOIN product_details p ON s.prod_id = product_id
 	GROUP BY p.product_name
 		
+--B. Transaction Analysis			
+--1. How many unique transactions were there?	
+
+	SELECT COUNT(DISTINCT txn_id) AS transaction_count		
+	FROM sales;		
+
+--2. What is the average unique products purchased in each transaction?	
+
+	SELECT ROUND(AVG(total_quantity), 2) AS avg_unique_products
+	FROM (
+	SELECT txn_id, 
+	SUM(qty) AS total_quantity
+	FROM sales s
+	GROUP BY txn_id) AS total_quantities;
+
+
+--3. What are the 25th, 50th and 75th percentile values for the revenue per transaction?	
+
+--4. What is the average discount value per transaction?
+
+	WITH discounted_value AS (
+	SELECT txn_id,
+	SUM(qty * price * discount / 100) AS discount_amt
+	FROM sales
+	GROUP BY txn_id)
+
+	SELECT ROUND(AVG(discount_amt), 2) AS avg_discount
+	FROM discounted_value;
+
