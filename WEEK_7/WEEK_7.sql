@@ -15337,6 +15337,18 @@ GO
 
 --3. What are the 25th, 50th and 75th percentile values for the revenue per transaction?	
 
+	WITH revenue_cte AS (
+	SELECT txn_id, 
+	SUM(price * qty) AS revenue
+	FROM sales
+	GROUP BY txn_id)
+
+	SELECT
+	PERCENTILE_CONT(0.25)WITHIN GROUP (ORDER BY revenue) OVER () AS median_25th,
+	PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY revenue) OVER () AS median_50th,
+	PERCENTILE_CONT(0.75)WITHIN GROUP (ORDER BY revenue) OVER () AS median_75th
+	FROM revenue_cte;
+
 --4. What is the average discount value per transaction?
 
 	WITH discounted_value AS (
@@ -15348,3 +15360,27 @@ GO
 	SELECT ROUND(AVG(discount_amt), 2) AS avg_discount
 	FROM discounted_value;
 
+--5. What is the percentage split of all transactions for members vs non-members?
+
+	WITH transactions_cte AS (
+	SELECT member,
+	COUNT(DISTINCT txn_id) AS transactions
+	FROM sales
+	GROUP BY member)
+
+	SELECT member, transactions,
+	ROUND(100.0 * transactions / (SELECT SUM(transactions) FROM transactions_cte), 2) AS percentage
+	FROM transactions_cte;
+
+	--6. What is the average revenue for member transactions and non-member transactions?
+
+	WITH revenue_cte AS (
+	SELECT member, txn_id,
+	SUM(price * qty) AS revenue
+	FROM sales
+	GROUP BY member, txn_id)
+
+	SELECT member,
+	ROUND(AVG(revenue),2) AS avg_revenue
+	FROM revenue_cte
+	GROUP BY member;
