@@ -39,7 +39,7 @@ VALUES
 GO
 
 -- STEP 3: Create Table product_prices --
-CREATE TABLE product_prices_BT(
+CREATE TABLE product_prices(
   id INTEGER,
   product_id VARCHAR(6),
   price INTEGER
@@ -47,7 +47,7 @@ CREATE TABLE product_prices_BT(
 GO
 
 -- Insert new records in table --
-INSERT INTO product_prices_BT
+INSERT INTO product_prices
   (id, product_id, price)
 VALUES
   ('7', 'c4a632', '13'),
@@ -65,7 +65,7 @@ VALUES
  GO
 
 -- STEP 4: Create Table product_details --
-CREATE TABLE product_details_BT (
+CREATE TABLE product_details (
   product_id VARCHAR(6),
   price INTEGER,
   product_name VARCHAR(32),
@@ -79,7 +79,7 @@ CREATE TABLE product_details_BT (
 GO
 
 -- Insert new records in table --
-INSERT INTO product_details_BT
+INSERT INTO product_details
   (product_id, price, product_name, category_id, segment_id, style_id, category_name, segment_name, style_name)
 VALUES
   ('c4a632', '13', 'Navy Oversized Jeans - Womens', '1', '3', '7', 'Womens', 'Jeans', 'Navy Oversized'),
@@ -97,7 +97,7 @@ VALUES
  GO
 
 -- STEP 5: Create Table sales --
-CREATE TABLE sales_BT (
+CREATE TABLE sales (
   prod_id VARCHAR(6),
   qty INTEGER,
   price INTEGER,
@@ -109,7 +109,7 @@ CREATE TABLE sales_BT (
 GO
 
 -- Insert new records in table --
-INSERT INTO sales_BT
+INSERT INTO sales
   (prod_id, qty, price, discount, member, txn_id, start_txn_time)
 VALUES
   ('c4a632', '4', '13', '17', 't', '54f307', '2021-02-13 01:59:43.296'),
@@ -15372,7 +15372,7 @@ GO
 	ROUND(100.0 * transactions / (SELECT SUM(transactions) FROM transactions_cte), 2) AS percentage
 	FROM transactions_cte;
 
-	--6. What is the average revenue for member transactions and non-member transactions?
+--6. What is the average revenue for member transactions and non-member transactions?
 
 	WITH revenue_cte AS (
 	SELECT member, txn_id,
@@ -15384,3 +15384,99 @@ GO
 	ROUND(AVG(revenue),2) AS avg_revenue
 	FROM revenue_cte
 	GROUP BY member;
+
+-- C. Product Analysis
+--1. What are the top 3 products by total revenue before discount?
+
+	SELECT TOP 3
+	p.product_id,
+	p.product_name, 
+	SUM(s.qty * s.price) AS total_revenue
+	FROM sales As s
+	JOIN product_details AS p
+	ON s.prod_id = p.product_id
+	GROUP BY p.product_id, p.product_name
+	ORDER BY total_revenue DESC;
+
+--2. What is the total quantity, revenue and discount for each segment?
+
+	SELECT 
+	p.segment_id,
+	p.segment_name, 
+	SUM(s.qty) AS total_quantity,
+	SUM(s.qty * s.price) AS total_revenue,
+	SUM((s.qty * s.price) * s.discount/100) AS total_discount
+	FROM sales AS s
+	JOIN product_details AS p
+	ON s.prod_id = p.product_id
+	GROUP BY p.segment_id, p.segment_name;
+
+--3. What is the top selling product for each segment?
+
+	WITH top_selling_cte AS (
+	SELECT 
+	p.segment_id,
+	p.segment_name, 
+	p.product_id,
+	p.product_name,
+	SUM(s.qty) AS total_quantity,
+	RANK() OVER (
+	PARTITION BY p.segment_id 
+	ORDER BY SUM(s.qty) DESC) AS ranking
+	FROM sales AS s
+	JOIN product_details AS p
+	ON s.prod_id = p.product_id
+	GROUP BY 
+	p.segment_id, 
+	p.segment_name, 
+	p.product_id, 
+	p.product_name)
+
+	SELECT 
+	segment_id,
+	segment_name, 
+	product_id,
+	product_name,
+	total_quantity
+	FROM top_selling_cte
+	WHERE ranking = 1;
+
+--4. What is the total quantity, revenue and discount for each category?
+
+	SELECT 
+	p.category_id,
+	p.category_name, 
+	SUM(s.qty) AS total_quantity,
+	SUM(s.qty * s.price) AS total_revenue,
+	SUM((s.qty * s.price) * s.discount/100) AS total_discount
+	FROM sales AS s
+	JOIN product_details AS p
+	ON s.prod_id = p.product_id
+	GROUP BY p.category_id, p.category_name
+	
+
+--5. What is the top selling product for each category?
+
+	WITH top_selling_cte AS ( 
+	SELECT 
+	p.category_id,
+	p.category_name, 
+	p.product_id,
+	p.product_name,
+	SUM(s.qty) AS total_quantity,
+	RANK() OVER (PARTITION BY p.category_id 
+	ORDER BY SUM(s.qty) DESC) AS ranking
+	FROM sales AS s
+	JOIN product_details AS p
+	ON s.prod_id = p.product_id
+	GROUP BY 
+	p.category_id, p.category_name, p.product_id, p.product_name)
+
+	SELECT 
+	category_id,
+	category_name, 
+	product_id,
+	product_name,
+	total_quantity
+	FROM top_selling_cte
+	WHERE ranking = 1;
