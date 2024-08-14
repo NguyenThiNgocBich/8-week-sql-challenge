@@ -17357,19 +17357,31 @@ GO
 	GROUP BY calendar_year;
 
 	
---  -- 8. Which age_band and demographic values contribute the most to Retail sales?
-	SELECT * FROM CLEAN_WEEKLY_SALES
+-- T?m các giá tr? age_band và demographic ðóng góp nhi?u nh?t vào doanh s? bán l?
 
-	SELECT
-	  age_band, demographic,  SUM(CAST(sales AS BIGINT)) AS T_sales
-	FROM
-	  clean_weekly_sales
-	WHERE
-	  platform_bussiness = 'Retail'
-	GROUP BY
-	  age_band, demographic
-	ORDER BY
-	  T_sales DESC, age_band, demographic
+WITH retail_sales_data AS (
+SELECT 
+age_band, 
+demographic, 
+SUM(CAST(sales AS BIGINT)) AS retail_sales
+FROM clean_weekly_sales
+WHERE platform_bussiness = 'Retail'
+GROUP BY age_band, demographic),
+total_retail_sales AS (
+SELECT SUM(retail_sales) AS total_sales
+FROM retail_sales_data)
+
+SELECT 
+r.age_band, 
+r.demographic, 
+r.retail_sales,
+ROUND(100 * r.retail_sales / t.total_sales, 2) AS contribution_percentage
+FROM retail_sales_data r, total_retail_sales t
+ORDER BY r.retail_sales DESC;
+
+ 
+
+
 
   					
 -- 9. Can we use the avg_transaction column to find the average transaction size for each year for Retail vs Shopify? If not - how would you calculate it instead?
