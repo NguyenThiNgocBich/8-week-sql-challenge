@@ -15770,12 +15770,80 @@ VALUES
 	SELECT TRY_CONVERT(date, '2021-07');
 	SELECT TRY_CONVERT(datetime, '01-' + '07-2021', 105);
 
+--B. Interest Analysis
+--1. Which interests have been present in all month_year dates in our dataset?
+-- Đếm số lượng month_year và interest_id duy nhất trong dataset
 
+	SELECT 
+	COUNT(DISTINCT month_year) AS unique_month_year_count, 
+	COUNT(DISTINCT interest_id) AS unique_interest_id_count
+	FROM interest_metrics;
 
+	WITH interest_cte AS (
+	SELECT interest_id, 
+	COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	WHERE month_year IS NOT NULL
+	GROUP BY interest_id
+	)
 
+	SELECT c.total_months,
+	COUNT(DISTINCT c.interest_id) as "count" 
+	FROM interest_cte c
+	WHERE total_months = 14
+	GROUP BY c.total_months
+	ORDER BY "count" DESC;
 
+--2. Using this same total_months measure - calculate the cumulative percentage of all records starting at 14 months
+--- which total_months value passes the 90% cumulative percentage value?
 
+	WITH cte_interest_months AS (
+	SELECT interest_id,
+	COUNT(DISTINCT month_year) AS total_months  
+	FROM interest_metrics
+	WHERE interest_id IS NOT NULL
+	GROUP BY interest_id
+	),
+	cte_interest_counts AS (
+	SELECT total_months,
+	COUNT(DISTINCT interest_id) AS interest_count
+	FROM cte_interest_months
+	GROUP BY total_months
+	)
+	SELECT total_months, interest_count,
+	ROUND(100 * SUM(interest_count) OVER (ORDER BY total_months DESC)
+	/ SUM(interest_count) OVER (), 2) AS cumulative_percentage
+	FROM cte_interest_counts
+    ORDER BY total_months DESC;
 
+--3.If we were to remove all interest_id values which are lower than the total_months
+--value we found in the previous question - how many total data points would we be removing?
 
+	WITH cte_interest_months AS (
+	SELECT interest_id,
+	COUNT(DISTINCT month_year) AS total_months 
+	FROM interest_metrics	
+	GROUP BY interest_id
+	),
+	cte_removed_data AS (
+	SELECT 
+	COUNT(*) AS removed_count
+	FROM interest_metrics im
+	JOIN cte_interest_months cim 
+	ON im.interest_id = cim.interest_id
+	WHERE cim.total_months < 10 
+	)
+	SELECT removed_count
+	FROM cte_removed_data;
 
+--4.Does this decision make sense to remove these data points from a business perspective?
+ -- Use an example where there are all 14 months present to a removed interest example for your arguments 
+ -- think about what it means to have less months present from a segment perspective. 
+
+	SELECT
+	CAST(metrics.month_year AS DATE) AS month,
+	COUNT(DISTINCT interest_id) AS unique_interests
+	FROM interest_metrics metrics
+	GROUP BY CAST(metrics.month_year AS DATE)
+	
 
