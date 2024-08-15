@@ -15846,4 +15846,90 @@ VALUES
 	FROM interest_metrics metrics
 	GROUP BY CAST(metrics.month_year AS DATE)
 	
+--C. Segment Analysis
+--1 -Using the complete dataset 
+-- which are the top 10 and bottom 10 interests which have the largest composition values in any month_year? 
+-- Only use the maximum composition value for each interest but you must keep the corresponding month_year
+-- Bottom 10
 
+--Bottom 10 Interests
+	WITH MaxCompositions AS (
+	SELECT
+	interest_id,
+	MAX(composition) AS max_composition
+	FROM interest_metrics
+	GROUP BY interest_id
+	),
+	RankedInterests AS (
+	SELECT
+	im.month_year,
+	im.interest_id,
+	im.composition AS max_composition
+	FROM interest_metrics im
+	JOIN MaxCompositions mc
+	ON im.interest_id = mc.interest_id
+	AND im.composition = mc.max_composition
+	)
+	SELECT TOP 10
+	month_year,
+	interest_id,
+	max_composition
+	FROM RankedInterests
+	ORDER BY max_composition ASC;
+
+--Top 10 Interests
+
+	WITH MaxCompositions AS (
+	SELECT
+	interest_id,
+	MAX(composition) AS max_composition
+	FROM interest_metrics
+	GROUP BY interest_id
+	),
+	RankedInterests AS (
+	SELECT
+	im.month_year,
+	im.interest_id,
+	im.composition AS max_composition
+	FROM interest_metrics im
+	JOIN MaxCompositions mc
+	ON im.interest_id = mc.interest_id
+	AND im.composition = mc.max_composition
+	)
+
+	SELECT TOP 10
+	month_year,
+	interest_id,
+	max_composition
+	FROM RankedInterests
+	ORDER BY max_composition DESC;
+
+--2 - Which 5 interests had the lowest average ranking value?
+
+	SELECT TOP 5
+	interest_id,
+	AVG(ranking) AS avg_ranking
+	FROM interest_metrics
+	GROUP BY interest_id
+	ORDER BY avg_ranking;
+
+--3 - Which 5 interests had the largest standard deviation in their percentile_ranking value?
+	
+	SELECT TOP 5
+	interest_id,
+	STDEV(percentile_ranking) AS stdev_percentile_ranking
+	FROM interest_metrics
+	GROUP BY interest_id
+	ORDER BY stdev_percentile_ranking DESC;
+
+--4 - For the 5 interests found in the previous question 
+-- what was minimum and maximum percentile_ranking values for each interest 
+--and its corresponding year_month value? Can you describe what is happening for these 5 interests?
+
+	SELECT
+	interest_id,
+	month_year,
+	MIN(percentile_ranking) AS min_percentile_ranking,
+	MAX(percentile_ranking) AS max_percentile_ranking
+	FROM interest_metrics
+	GROUP BY interest_id, month_year;
