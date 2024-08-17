@@ -15933,3 +15933,51 @@ VALUES
 	MAX(percentile_ranking) AS max_percentile_ranking
 	FROM interest_metrics
 	GROUP BY interest_id, month_year;
+--D. Index Analysis
+--1 - What is the top 10 interests by the average composition for each month?
+
+	WITH ranked_interests AS (
+	SELECT
+	imt._month AS "Month",
+	CONVERT(VARCHAR(50), im.interest_name) AS interest_name,  -- Chuyển đổi kiểu dữ liệu
+	AVG(imt.composition) AS Avg_Composition,
+	RANK() OVER (PARTITION BY imt._month ORDER BY AVG(imt.composition) DESC) AS ranking
+	FROM
+	interest_metrics imt
+	JOIN
+	interest_map im ON imt.interest_id = im.id
+	GROUP BY
+	imt._month, CONVERT(VARCHAR(50), im.interest_name)  -- Chuyển đổi kiểu dữ liệu
+	)
+	SELECT
+	"Month",
+	interest_name,
+	Avg_Composition
+	FROM ranked_interests
+	WHERE ranking <= 10
+	ORDER BY "Month", Avg_Composition DESC;
+
+--2 - For all of these top 10 interests - which interest appears the most often?
+
+	WITH TopInterests AS (
+	SELECT TOP 10
+	im.id AS interest_id,
+	CONVERT(VARCHAR(MAX), im.interest_name) AS interest_name,  -- Chuyển đổi kiểu dữ liệu
+	AVG(imt.composition) AS Avg_Composition
+	FROM interest_metrics imt
+	JOIN interest_map im ON imt.interest_id = im.id
+	GROUP BY im.id, CONVERT(VARCHAR(MAX), im.interest_name)  -- Chuyển đổi kiểu dữ liệu
+	ORDER BY Avg_Composition DESC
+	)
+	SELECT ti.interest_name,
+	COUNT(*) AS Occurrences
+	FROM TopInterests ti
+	JOIN interest_metrics imt ON ti.interest_id = imt.interest_id
+	GROUP BY ti.interest_name
+	ORDER BY Occurrences DESC;
+
+--3 - What is the average of the average composition for the top 10 interests for each month?
+
+
+
+
